@@ -1,0 +1,146 @@
+#!/bin/bash
+
+#################
+# CONFIGURATION #
+#################
+
+# set defaults for variables
+vaultFileName="vault.yml"
+vaultPasswordFile="/tmp/vault-password-file-$(date +%s%N).txt"
+
+
+#############
+# FUNCTIONS #
+#############
+
+# --------------------------------------------------------
+# Function for creating log entries on the console
+# --------------------------------------------------------
+# $1 - Log level
+# $2 - Log text
+# --------------------------------------------------------
+function log() {
+
+    # read parameters
+    local level="$1"
+    local text="$2"
+
+    # create log message
+    local now=$(date +"%d-%m-%Y %H:%M:%S")
+    echo -e "\n$now [$level] $text\n"
+}
+
+# ---------------------------------------------------------------
+# Function for printing the usage of this script
+# ---------------------------------------------------------------
+function usage() {
+
+    # print help text
+    cat <<USAGE
+Usage:
+  $scriptName [Options] <Args>
+
+Options:
+  -h    Show this help text
+  -r    Rekey all vault protected files
+  -s    Search for secret text in all vault protected files
+
+Examples:
+  $scriptName -r
+  $scriptName -s
+
+USAGE
+
+    # exit with error
+    exit -1
+}
+
+
+##########
+# SCRIPT #
+##########
+
+# echo script banner
+echo ""
+echo "#########################"
+echo "# Ansible Vault Wrapper #"
+echo "#########################"
+echo ""
+
+# get script folder
+scriptPath="$(readlink -f $0)"
+scriptFolder="$(dirname $scriptPath)"
+scriptName="$(basename $scriptPath)"
+
+# get command line args
+while getopts hrs opt
+do
+    case $opt in
+        h)
+            usage
+            exit -1
+        ;;
+        r)
+            action="rekey"
+        ;;
+        s)
+            action="search"
+        ;;   
+        \?)
+            log "ERROR" "Invalid option: -$OPTARG"
+            exit -1
+        ;;
+    esac
+done
+
+# show help text if action is not set
+if [ "$action" == "" ]
+then
+    usage
+    exit -1
+fi
+
+# read vault password from command line
+read -s -p "Vault Password: " vaultPassword
+echo ""
+
+# create vault password file
+echo "$vaultPassword" > "$vaultPasswordFile"
+
+# perform action
+case $action in
+    rekey)
+
+        # iterate over all vault files and rekey them
+        find -type f -name "$vaultFileName" | while read vaultFile
+        do
+            # logging
+            log "INFO" "Trying to rekey vault file '$vaultFile' ..."
+
+            # rekey current vault file
+            ansible-vault rekey "$vaultFile" --vault-password-file "$vaultPasswordFile"
+        done
+    ;;
+    search)
+
+        # read secret text from command line
+        read -s -p "Secret Text: " secretText
+        echo ""
+
+        # logging
+        log "INFO" "Trying to find secret text in all vault files ..."
+
+        # iterate over all vault files and search for the secret
+        find -type f -name "$vaultFileName" | while read vaultFile
+        do
+            output="$(ansible-vault view "$vaultFile" --vault-password-file "$vaultPasswordFile" | grep "$secretText")"
+            if [ "$output" != "" ]
+            then
+                echo "Secret text found in file '$vaultFile'"
+            fi
+        done
+    ;;
+esac    
+
+# remove vault password file
+rm -f "$vaultPasswordFile"     
