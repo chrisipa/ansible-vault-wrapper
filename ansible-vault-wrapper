@@ -101,7 +101,7 @@ function encrypt() {
     find -type f -name "$vaultFileName" | while read vaultFile
     do
         # Logging
-        echo "Decrypting vault file '$vaultFile'"
+        echo "Encrypting vault file '$vaultFile'"
 
         # encrypt current vault file
         ansible-vault encrypt "$vaultFile" --vault-password-file "$vaultPasswordFile" > /dev/null 2>&1
