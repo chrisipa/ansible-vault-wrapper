@@ -31,6 +31,131 @@ function log() {
 }
 
 # ---------------------------------------------------------------
+# Function for reading the vault password and save it to a file
+# ---------------------------------------------------------------
+function createVaultPasswordFile() {
+
+    # logging
+    log "INFO" "Creating vault password file '$vaultPasswordFile'"
+    
+    # read vault password from command line
+    read -s -p "Vault Password: " vaultPassword
+    echo ""
+
+    # create vault password file
+    echo "$vaultPassword" > "$vaultPasswordFile"
+
+    # limit permissions for vault password file
+    chmod 600 "$vaultPasswordFile"
+}
+
+# ---------------------------------------------------------------
+# Function for removing the vault password file
+# ---------------------------------------------------------------
+function removeVaultPasswordFile() {
+    
+    # logging
+    log "INFO" "Removing vault password file '$vaultPasswordFile'"
+
+    # remove vault password file
+    rm -f "$vaultPasswordFile"
+}
+
+# ---------------------------------------------------------------
+# Function for decrypting all vault files
+# ---------------------------------------------------------------
+function decrypt() {
+
+    # logging
+    log "INFO" "Decrypting all vault files"
+
+    # create vault password file
+    createVaultPasswordFile
+
+    # iterate over all vault files and decrypt them
+    find -type f -name "$vaultFileName" | while read vaultFile
+    do
+        # Logging
+        echo "Decrypting vault file '$vaultFile'"
+
+        # decrypt current vault file
+        ansible-vault decrypt "$vaultFile" --vault-password-file "$vaultPasswordFile" > /dev/null 2>&1
+    done
+
+    # remove vault password file
+    removeVaultPasswordFile
+}
+
+# ---------------------------------------------------------------
+# Function for encrypting all vault files
+# ---------------------------------------------------------------
+function encrypt() {
+
+    # logging
+    log "INFO" "Encrypting all vault files"
+
+    # create vault password file
+    createVaultPasswordFile
+
+    # iterate over all vault files and encrypt them
+    find -type f -name "$vaultFileName" | while read vaultFile
+    do
+        # Logging
+        echo "Decrypting vault file '$vaultFile'"
+
+        # encrypt current vault file
+        ansible-vault encrypt "$vaultFile" --vault-password-file "$vaultPasswordFile" > /dev/null 2>&1
+    done
+
+    # remove vault password file
+    removeVaultPasswordFile
+}
+
+# ---------------------------------------------------------------
+# Function to rekey all vault files
+# ---------------------------------------------------------------
+function rekey() {
+
+    # logging
+    log "INFO" "Rekeying all vault files"
+
+    # decrypt all vault files
+    decrypt
+
+    # encrypt all vault files
+    encrypt
+}
+
+# ---------------------------------------------------------------
+# Function to search secrets in all vault files
+# ---------------------------------------------------------------
+function search() {
+
+    # create vault password file
+    createVaultPasswordFile
+
+    # read secret text from command line
+    read -s -p "Secret Text: " secretText
+    echo ""
+
+    # logging
+    log "INFO" "Searching secret text in all vault files"
+
+    # iterate over all vault files and search for the secret
+    find -type f -name "$vaultFileName" | while read vaultFile
+    do
+        output="$(ansible-vault view $vaultFile --vault-password-file $vaultPasswordFile | grep -F $secretText)"
+        if [ "$output" != "" ]
+        then
+            echo "Secret text found in file '$vaultFile'"
+        fi
+    done
+
+    # remove vault password file
+    removeVaultPasswordFile
+}
+
+# ---------------------------------------------------------------
 # Function for printing the usage of this script
 # ---------------------------------------------------------------
 function usage() {
@@ -41,12 +166,13 @@ Usage:
   $scriptName [Options] <Args>
 
 Options:
+  -d    Decrypt all vault files
+  -e    Encrypt all vault files
   -h    Show this help text
-  -r    Rekey all vault protected files
-  -s    Search for secret text in all vault protected files
+  -r    Rekey (change password for) all vault files
+  -s    Search for secret text in all vault files
 
-Examples:
-  $scriptName -r
+Example:
   $scriptName -s
 
 USAGE
@@ -72,75 +198,36 @@ scriptPath="$(readlink -f $0)"
 scriptFolder="$(dirname $scriptPath)"
 scriptName="$(basename $scriptPath)"
 
-# get command line args
-while getopts hrs opt
-do
-    case $opt in
-        h)
-            usage
-            exit -1
-        ;;
-        r)
-            action="rekey"
-        ;;
-        s)
-            action="search"
-        ;;   
-        \?)
-            log "ERROR" "Invalid option: -$OPTARG"
-            exit -1
-        ;;
-    esac
-done
-
 # show help text if action is not set
-if [ "$action" == "" ]
+if [ "$1" == "" ]
 then
     usage
     exit -1
 fi
 
-# read vault password from command line
-read -s -p "Vault Password: " vaultPassword
-echo ""
-
-# create vault password file
-echo "$vaultPassword" > "$vaultPasswordFile"
-
-# perform action
-case $action in
-    rekey)
-
-        # iterate over all vault files and rekey them
-        find -type f -name "$vaultFileName" | while read vaultFile
-        do
-            # logging
-            log "INFO" "Trying to rekey vault file '$vaultFile' ..."
-
-            # rekey current vault file
-            ansible-vault rekey "$vaultFile" --vault-password-file "$vaultPasswordFile"
-        done
-    ;;
-    search)
-
-        # read secret text from command line
-        read -s -p "Secret Text: " secretText
-        echo ""
-
-        # logging
-        log "INFO" "Trying to find secret text in all vault files ..."
-
-        # iterate over all vault files and search for the secret
-        find -type f -name "$vaultFileName" | while read vaultFile
-        do
-            output="$(ansible-vault view "$vaultFile" --vault-password-file "$vaultPasswordFile" | grep "$secretText")"
-            if [ "$output" != "" ]
-            then
-                echo "Secret text found in file '$vaultFile'"
-            fi
-        done
-    ;;
-esac    
-
-# remove vault password file
-rm -f "$vaultPasswordFile"     
+# get command line args
+while getopts dehrs opt
+do
+    case $opt in
+        d)
+            decrypt
+        ;;
+        e)
+            encrypt
+        ;;
+        h)
+            usage
+            exit -1
+        ;;
+        r)
+            rekey
+        ;;
+        s)
+            search
+        ;;   
+        \?)
+            log "ERROR" "Please specify a valid option"
+            exit -1
+        ;;
+    esac
+done   

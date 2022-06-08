@@ -12,13 +12,14 @@ Simple bash wrapper to execute Ansible vault commands in a more convenient way:
      ansible-vault-wrapper [Options] <Args>
 
    Options:
+     -d    Decrypt all vault files
+     -e    Encrypt all vault files
      -h    Show this help text
-     -r    Rekey all vault protected files
-     -s    Search for secret text in all vault protected files
+     -r    Rekey (change password for) all vault files
+     -s    Search for secret text in all vault files
 
-   Examples:
-     ansible-vault-wrapper -r
-     ansible-vault-wrapper -s   
+   Example:
+     ansible-vault-wrapper -s  
    ```
 
 Prerequisites
