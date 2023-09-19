@@ -113,14 +113,14 @@ function removeVaultFilesCacheFile() {
 # ---------------------------------------------------------------
 function decrypt() {
 
-    # logging
-    log "INFO" "Decrypting all vault files"
-
     # create vault password file
     createVaultPasswordFile
 
     # create vault files cache
     createVaultFilesCacheFile
+
+    # logging
+    log "INFO" "Decrypting all vault files"
 
     # iterate over all vault files and decrypt them
     cat "$vaultFilesCacheFile" | while read vaultFile
@@ -141,15 +141,15 @@ function decrypt() {
 # ---------------------------------------------------------------
 function encrypt() {
 
-    # logging
-    log "INFO" "Encrypting all vault files"
-
     # check if vault files cache file exists
     if [ -f "$vaultFilesCacheFile" ]
     then
 
         # create vault password file
         createVaultPasswordFile "true"
+
+        # logging
+        log "INFO" "Encrypting all vault files"
 
         # iterate over all vault files and encrypt them
         cat "$vaultFilesCacheFile" | while read vaultFile
