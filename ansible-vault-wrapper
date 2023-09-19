@@ -33,14 +33,37 @@ function log() {
 # ---------------------------------------------------------------
 # Function for reading the vault password and save it to a file
 # ---------------------------------------------------------------
+# $1 - Does the vault password need to be confirmed
+# ---------------------------------------------------------------
 function createVaultPasswordFile() {
 
+    # read parameters
+    local confirm="$1"
+    
     # logging
     log "INFO" "Creating vault password file '$vaultPasswordFile'"
     
-    # read vault password from command line
-    read -s -p "Vault Password: " vaultPassword
-    echo ""
+    # check if vault password needs confirmation
+    if [ "$confirm" == "true" ]
+    then
+        # read the new vault password from command line
+        read -s -p "New Vault Password: " vaultPassword
+        echo ""
+        read -s -p "New Vault Password (Confirm): " vaultPasswordConfirm
+        echo ""
+        echo ""
+
+        # check if both vault passwords are matching
+        if [ "$vaultPassword" != "$vaultPasswordConfirm" ]
+        then
+            log "ERROR" "You have entered different vault passwords. Please try again."
+            exit -1
+        fi
+    else
+        # read the current vault password from command line
+        read -s -p "Current Vault Password: " vaultPassword
+        echo ""
+    fi
 
     # create vault password file
     echo "$vaultPassword" > "$vaultPasswordFile"
@@ -121,11 +144,12 @@ function encrypt() {
     # logging
     log "INFO" "Encrypting all vault files"
 
+    # check if vault files cache file exists
     if [ -f "$vaultFilesCacheFile" ]
     then
 
         # create vault password file
-        createVaultPasswordFile
+        createVaultPasswordFile "true"
 
         # iterate over all vault files and encrypt them
         cat "$vaultFilesCacheFile" | while read vaultFile
@@ -174,14 +198,14 @@ function search() {
     createVaultPasswordFile
 
     # read secret text from command line
-    read -s -p "Secret Text: " secretText
+    read -s -p "Secret Search Text: " secretText
     echo ""
-
-    # logging
-    log "INFO" "Searching secret text in all vault files"
 
     # create vault files cache
     createVaultFilesCacheFile
+
+    # logging
+    log "INFO" "Searching secret text in all vault files"
 
     # iterate over all vault files and search for the secret
     cat "$vaultFilesCacheFile" | while read vaultFile
