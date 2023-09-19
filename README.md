@@ -12,6 +12,7 @@ Simple bash wrapper to execute Ansible vault commands in a more convenient way:
      ansible-vault-wrapper [Options] <Args>
 
    Options:
+     -c    Cleanup vault files cache file
      -d    Decrypt all vault files
      -e    Encrypt all vault files
      -h    Show this help text

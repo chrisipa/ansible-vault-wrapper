@@ -30,6 +30,30 @@ function log() {
     echo -e "\n$now [$level] $text\n"
 }
 
+# --------------------------------------------------------
+# Function to display a confirm message on the console
+# --------------------------------------------------------
+# $1 - Confirm message
+# --------------------------------------------------------
+function confirm() {
+
+    # read parameters
+    local question="$1"
+
+    echo ""
+    read -r -p "$question [Y/n] " answer
+    echo ""
+
+    case "$answer" in
+        [yY][eE][sS]|[yY])
+            return 0
+        ;;
+        *)
+            return 1
+        ;;
+    esac
+}
+
 # ---------------------------------------------------------------
 # Function for reading the vault password and save it to a file
 # ---------------------------------------------------------------
@@ -113,27 +137,37 @@ function removeVaultFilesCacheFile() {
 # ---------------------------------------------------------------
 function decrypt() {
 
-    # create vault password file
-    createVaultPasswordFile
+    # check if vault files cache file already exists
+    if [ ! -f "$vaultFilesCacheFile" ]
+    then
 
-    # create vault files cache
-    createVaultFilesCacheFile
+        # create vault password file
+        createVaultPasswordFile
 
-    # logging
-    log "INFO" "Decrypting all vault files"
+        # create vault files cache
+        createVaultFilesCacheFile
 
-    # iterate over all vault files and decrypt them
-    cat "$vaultFilesCacheFile" | while read vaultFile
-    do
-        # Logging
-        echo "Decrypting vault file '$vaultFile'"
+        # logging
+        log "INFO" "Decrypting all vault files"
 
-        # decrypt current vault file
-        ansible-vault decrypt "$vaultFile" --vault-password-file "$vaultPasswordFile" > /dev/null 2>&1
-    done
+        # iterate over all vault files and decrypt them
+        cat "$vaultFilesCacheFile" | while read vaultFile
+        do
+            # Logging
+            echo "Decrypting vault file '$vaultFile'"
 
-    # remove vault password file
-    removeVaultPasswordFile
+            # decrypt current vault file
+            ansible-vault decrypt "$vaultFile" --vault-password-file "$vaultPasswordFile" > /dev/null 2>&1
+        done
+
+        # remove vault password file
+        removeVaultPasswordFile
+    else
+
+        # logging
+        log "ERROR" "Vault files cache file '$vaultFilesCacheFile' already exists. Please revert all of your local changes and execute the cleanup command."
+        exit -1
+    fi
 }
 
 # ---------------------------------------------------------------
@@ -225,6 +259,18 @@ function search() {
 }
 
 # ---------------------------------------------------------------
+# Function to cleanup vault files cache file
+# ---------------------------------------------------------------
+function cleanup() {
+
+    # confirm removal of vault files cache file
+    if confirm "Do you really want to cleanup the vault files cache file '$vaultFilesCacheFile'? You will loose all file paths from previous vault files!"
+    then
+        removeVaultFilesCacheFile
+    fi
+}
+
+# ---------------------------------------------------------------
 # Function for printing the usage of this script
 # ---------------------------------------------------------------
 function usage() {
@@ -235,6 +281,7 @@ Usage:
   $scriptName [Options] <Args>
 
 Options:
+  -c    Cleanup vault files cache file
   -d    Decrypt all vault files
   -e    Encrypt all vault files
   -h    Show this help text
@@ -275,9 +322,12 @@ then
 fi
 
 # get command line args
-while getopts dehrs opt
+while getopts cdehrs opt
 do
     case $opt in
+        c)
+            cleanup
+        ;;
         d)
             decrypt
         ;;
