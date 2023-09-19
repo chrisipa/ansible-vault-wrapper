@@ -62,13 +62,13 @@ function confirm() {
 function createVaultPasswordFile() {
 
     # read parameters
-    local confirm="$1"
+    local confirmPassword="$1"
     
     # logging
     log "INFO" "Creating vault password file '$vaultPasswordFile'"
     
     # check if vault password needs confirmation
-    if [ "$confirm" == "true" ]
+    if [ "$confirmPassword" == "true" ]
     then
         # read the new vault password from command line
         read -s -p "New Vault Password: " vaultPassword
